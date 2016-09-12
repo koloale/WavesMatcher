@@ -1,10 +1,25 @@
 package com.wavesplatform.matcher
 
-abstract class Order {
+import com.wavesplatform.matcher.OrderType.OrderType
+
+/*sealed trait Order {
+  val orderType:OrderType
+  val instrument: Instrument
+  val price: Double
+  val quantity: Double
+}*/
+
+case class Order(id: String, orderType: OrderType, instrument: Instrument, price: Double, quantity: Double) {
 
 }
 
-object Orders {
-  case class Buy(clientId: String, instrument: String, price: Long, quantity: Long) extends Order
-  case class Sell(clientId: String, instrument: String, price: Long, quantity: Long) extends Order
+object Buy {
+  def apply(clientId: String, instrument: Instrument, price: Double, quantity: Double) =
+    Order(clientId, OrderType.BUY,  instrument, price, quantity)
+}
+
+
+object Sell {
+  def apply(clientId: String, instrument: Instrument, price: Double, quantity: Double) =
+    Order(clientId, OrderType.SELL,  instrument, price, quantity)
 }

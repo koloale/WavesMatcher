@@ -1,7 +1,6 @@
 package com.wavesplatform.system
 
-import com.wavesplatform.matcher.Market
-import com.wavesplatform.matcher.Orders.{Buy, Sell}
+import com.wavesplatform.matcher.{Instrument, Market, Order, OrderType}
 
 import scala.concurrent.ExecutionContext
 
@@ -32,8 +31,8 @@ trait TradingRestRoutes extends MarketApi
     pathPrefix("orders" / "buy") {
       pathEndOrSingleSlash {
         post {
-          entity(as[Buy]) { buy =>
-            onSuccess(createBuyOrder(buy)) {
+          entity(as[String]) { buy =>
+            onSuccess(placeOrder(Order("c1", OrderType.BUY, Instrument(buy), 0, 0))) {
               case Market.OrderCreated(clientId) => complete(Created, clientId)
             }
           }
@@ -63,13 +62,8 @@ trait MarketApi {
 
   lazy val market = createMarket()
 
-  def createBuyOrder(order: Buy) =
+  def placeOrder(order: Order) =
     market.ask(order)
       .mapTo[OrderResponse]
-
-  def createSellOrder(order: Sell) =
-    market.ask(order)
-      .mapTo[OrderResponse]
-
 
 }

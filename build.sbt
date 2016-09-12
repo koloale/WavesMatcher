@@ -7,6 +7,15 @@ scalaVersion := "2.11.8"
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
+lazy val swagger = Seq(
+  "io.swagger" %% "swagger-scala-module" % "1.+",
+  "io.swagger" % "swagger-core" % "1.+",
+  "io.swagger" % "swagger-annotations" % "1.+",
+  "io.swagger" % "swagger-models" % "1.+",
+  "io.swagger" % "swagger-jaxrs" % "1.+",
+  "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.+"
+)
+
 libraryDependencies ++= {
   val akkaV       = "2.4.10"
   val scalaTestV  = "2.2.6"
@@ -19,5 +28,9 @@ libraryDependencies ++= {
     "org.scalatest"     %% "scalatest" % scalaTestV % "test"
   )
 }
+
+libraryDependencies ++= swagger
+
+libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.13.2" % "test"
 
 Revolver.settings
