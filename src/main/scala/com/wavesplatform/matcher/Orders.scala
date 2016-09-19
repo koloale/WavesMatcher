@@ -3,14 +3,14 @@ package com.wavesplatform.matcher
 import scala.collection.mutable.ArrayBuffer
 
 class Orders(val instrument: Instrument, val price: Double) {
-  var orders = Vector.empty[Order]
+  var orders = Vector.empty[OrderItem]
 
-  def += (order: Order) {
+  def += (order: OrderItem) {
     require(order.price == price && order.instrument == instrument)
     orders = orders :+ order
   }
 
-  def execute(order: Order): (Seq[Order], Double) = {
+  def execute(order: OrderItem): (Seq[OrderItem], Double) = {
     var remainingQuantity = order.quantity
 
     var (executed, rest) = orders.span { placedOrder =>

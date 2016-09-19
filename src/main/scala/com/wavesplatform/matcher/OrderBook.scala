@@ -16,12 +16,12 @@ class OrderBook(val instrument: Instrument, val comparator: Comparator[Double]) 
     }
   }
 
-  def add(order: Order) {
+  def add(order: OrderItem) {
     priceOrders.putIfAbsent(order.price, new Orders(instrument, order.price))
     priceOrders.get(order.price) += order
   }
 
-  def execute(order: Order): (Seq[Order], Double) = {
+  def execute(order: OrderItem): (Seq[OrderItem], Double) = {
     getBestOrders match {
       case Some(bestOrders) =>
         if (comparator.compare(bestOrders.price, order.price) <= 0) {
@@ -38,7 +38,7 @@ class OrderBook(val instrument: Instrument, val comparator: Comparator[Double]) 
     priceOrders.remove(orders.price)
   }
 
-  def flattenOrders: Seq[Order] = {
+  def flattenOrders: Seq[OrderItem] = {
     priceOrders.values().flatMap(orders => orders.orders).toSeq
   }
 

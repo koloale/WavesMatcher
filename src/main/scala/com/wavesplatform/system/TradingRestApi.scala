@@ -1,6 +1,6 @@
 package com.wavesplatform.system
 
-import com.wavesplatform.matcher.{Instrument, Market, Order, OrderType}
+import com.wavesplatform.matcher._
 
 import scala.concurrent.ExecutionContext
 
@@ -12,12 +12,12 @@ import akka.http.scaladsl.server._
 import akka.pattern.ask
 import akka.util.Timeout
 
-class TradingRestApi(system: ActorSystem, timeout: Timeout)
+abstract class TradingRestApi(system: ActorSystem, timeout: Timeout)
     extends TradingRestRoutes {
     implicit val requestTimeout = timeout
     implicit def executionContext = system.dispatcher
 
-  def createMarket = system.actorOf(Market.props, Market.name)
+  //def createMarket = system.actorOf(MatchingEngine.props, MatchingEngine.name)
 }
 
 trait TradingRestRoutes extends MarketApi
@@ -32,8 +32,8 @@ trait TradingRestRoutes extends MarketApi
       pathEndOrSingleSlash {
         post {
           entity(as[String]) { buy =>
-            onSuccess(placeOrder(Order("c1", OrderType.BUY, Instrument(buy), 0, 0))) {
-              case Market.OrderCreated(clientId) => complete(Created, clientId)
+            onSuccess(placeOrder(OrderItem("c1", OrderType.BUY, Instrument(buy), 0, 0))) {
+              case MatchingEngine.OrderCreated(clientId) => complete(Created, clientId)
             }
           }
         }
@@ -53,7 +53,7 @@ trait TradingRestRoutes extends MarketApi
 }
 
 trait MarketApi {
-  import Market._
+  import com.wavesplatform.matcher.MatchingEngine._
 
   def createMarket(): ActorRef
 
@@ -62,7 +62,7 @@ trait MarketApi {
 
   lazy val market = createMarket()
 
-  def placeOrder(order: Order) =
+  def placeOrder(order: OrderItem) =
     market.ask(order)
       .mapTo[OrderResponse]
 

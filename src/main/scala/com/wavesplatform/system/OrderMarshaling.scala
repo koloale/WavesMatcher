@@ -1,6 +1,6 @@
 package com.wavesplatform.system
 
-import com.wavesplatform.matcher.{Instrument, Order}
+import com.wavesplatform.matcher.{Instrument, OrderItem}
 import spray.json._
 import spray.json.DefaultJsonProtocol
 
