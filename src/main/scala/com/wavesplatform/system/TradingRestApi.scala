@@ -1,7 +1,6 @@
 package com.wavesplatform.system
 
 import com.wavesplatform.matcher._
-
 import scala.concurrent.ExecutionContext
 
 import akka.actor.{ActorRef, ActorSystem}
@@ -12,6 +11,10 @@ import akka.http.scaladsl.server._
 import akka.pattern.ask
 import akka.util.Timeout
 
+import com.wavesplatform.matcher.market.MatchingEngine
+import com.wavesplatform.matcher.model.{OrderItem, OrderType}
+
+/*
 abstract class TradingRestApi(system: ActorSystem, timeout: Timeout)
     extends TradingRestRoutes {
     implicit val requestTimeout = timeout
@@ -53,7 +56,7 @@ trait TradingRestRoutes extends MarketApi
 }
 
 trait MarketApi {
-  import com.wavesplatform.matcher.MatchingEngine._
+  import com.wavesplatform.matcher.market.MatchingEngine._
 
   def createMarket(): ActorRef
 
@@ -66,4 +69,4 @@ trait MarketApi {
     market.ask(order)
       .mapTo[OrderResponse]
 
-}
+}*/

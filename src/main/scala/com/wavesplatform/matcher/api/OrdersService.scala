@@ -2,8 +2,7 @@ package com.wavesplatform.matcher.api
 
 import javax.ws.rs.Path
 
-import com.wavesplatform.matcher.MatchingEngine.OrderCreated
-import com.wavesplatform.matcher.{Instrument, MatchingEngine, OrderItem, OrderType}
+import com.wavesplatform.matcher.market.MatchingEngine.OrderCreated
 import io.swagger.annotations._
 import akka.http.scaladsl.Http
 import akka.actor.{ActorRef, ActorRefFactory}

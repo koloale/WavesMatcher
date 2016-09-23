@@ -1,29 +1,35 @@
 package com.wavesplatform.matcher
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 
-import com.wavesplatform.matcher.fixtures.RestartableActor
-import com.wavesplatform.matcher.fixtures.RestartableActor.RestartActor
+import com.wavesplatform.TransactionGen
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class MatchingEngineActorSpec extends TestKit(ActorSystem("MatcherTest"))
   with WordSpecLike
   with Matchers
   with BeforeAndAfterAll
-  with ImplicitSender {
+  with ImplicitSender
+  with TransactionGen {
 
-  "MatchingEngineActor" should {
-    "place an order to the smatcher and preserve it after restart" in {
-      val shoppingCartActor = system.actorOf(Props(new MatchingEngineActor("asset-000001") with RestartableActor))
+  /*"MatchingEngineActor" should {
+    val orderSample = orderGenerator.sample
+    "place an order to the matcher and preserve it after restart" in {
+      val meActor = system.actorOf(Props(new MatchingEngineActor("asset-000001") with RestartableActor))
 
-      /*shoppingCartActor ! AddItemCommand(shoppingItem)
-      expectMsg(AddItemResponse(shoppingItem))
+      orderSample match {
+        case Some(order) =>
+          meActor ! AddOrderCommand(order)
+          expectMsg(AddOrderResponse(order))
 
-      shoppingCartActor ! RestartActor
-      shoppingCartActor ! GetItemsRequest
+          meActor ! RestartActor
 
-      expectMsg(GetItemsResponse(Seq(shoppingItem)))*/
+          meActor ! GetOrdersRequest
+
+          expectMsg(GetOrdersResponse(Seq(order)))
+      }
     }
   }
+  */
 }

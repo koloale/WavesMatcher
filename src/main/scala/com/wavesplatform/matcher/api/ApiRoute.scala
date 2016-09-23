@@ -14,12 +14,12 @@ final case class JsonResponse(response: JsValue, code: StatusCode)
 
 trait ApiRoute extends Directives {
 
-  val context: ActorRefFactory = ???
+  //val context: ActorRefFactory = ???
   val route: Route
 
   implicit val timeout = Timeout(5.seconds)
 
-  def actorRefFactory: ActorRefFactory = context
+  //def actorRefFactory: ActorRefFactory = context
 
   def getJsonRoute(fn: Future[JsonResponse]): Route =
     jsonRoute(Await.result(fn, timeout.duration), get)

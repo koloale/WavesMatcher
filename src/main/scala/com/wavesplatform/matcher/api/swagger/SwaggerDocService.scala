@@ -3,9 +3,8 @@ package com.wavesplatform.matcher.api.swagger
 import com.github.swagger.akka.model.Info
 import com.github.swagger.akka.{HasActorSystem, SwaggerHttpService}
 import com.typesafe.config.Config
-import com.wavesplatform.matcher.api.OrdersService
+import com.wavesplatform.matcher.api.{MatcherApiRoute, OrdersService}
 import io.swagger.models.Swagger
-
 import scala.reflect.runtime.universe._
 
 import akka.actor.ActorSystem
@@ -22,7 +21,7 @@ class SwaggerDocService(system: ActorSystem, config: Config)
   override val apiDocsPath: String = "api-docs"
 
   override val apiTypes: Seq[Type] = Seq(
-    typeOf[OrdersService])
+    typeOf[MatcherApiRoute])
 
   override val info: Info = Info("The Web Interface to the WavesMatcher Rest API",
     "1.0.0",

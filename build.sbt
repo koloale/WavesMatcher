@@ -20,6 +20,11 @@ lazy val serializeLibs = Seq(
   "com.typesafe.play" %% "play-json" % "2.4.+"
 )
 
+lazy val loggingLibs = Seq(
+  "ch.qos.logback" % "logback-classic" % "1.+",
+  "ch.qos.logback" % "logback-core" % "1.+"
+)
+
 lazy val commonsLibs = Seq(
   "org.consensusresearch" %% "scrypto" % "1.0.4",
   "commons-net" % "commons-net" % "3.+"
@@ -32,7 +37,6 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-stream" % akkaV,
     "com.typesafe.akka" %% "akka-http-experimental" % akkaV,
-    "com.typesafe.akka" %% "akka-http-spray-json-experimental" % akkaV,
     "com.typesafe.akka" %% "akka-persistence" % akkaV,
     "com.github.dnvriend" %% "akka-persistence-inmemory" % "1.3.8" % "test",
     "com.typesafe.akka" %% "akka-http-testkit" % akkaV,
@@ -43,7 +47,8 @@ libraryDependencies ++= {
 
 libraryDependencies ++= swagger ++
   serializeLibs ++
-  commonsLibs
+  commonsLibs ++
+  loggingLibs
 
 libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.13.2" % "test"
 

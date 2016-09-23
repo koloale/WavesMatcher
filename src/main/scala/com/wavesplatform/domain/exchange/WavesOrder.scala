@@ -14,11 +14,11 @@ import com.wavesplatform.utils.ByteArray
 /**
   * Order to matcher service for asset exchange
   */
-case class Order(sender: PublicKeyAccount, matcher: PublicKeyAccount, spendAssetId: AssetId,
-                 receiveAssetId: AssetId, price: Long, amount: Long, maxTimestamp: Long, matcherFee: Long,
-                 signature: Array[Byte]) extends BytesSerializable with JsonSerializable {
+case class WavesOrder(sender: PublicKeyAccount, matcher: PublicKeyAccount, spendAssetId: AssetId,
+                      receiveAssetId: AssetId, price: Long, amount: Long, maxTimestamp: Long, matcherFee: Long,
+                      signature: Array[Byte]) extends BytesSerializable with JsonSerializable {
 
-  import Order._
+  import WavesOrder._
 
   /**
     * In what assets is price
@@ -49,20 +49,34 @@ case class Order(sender: PublicKeyAccount, matcher: PublicKeyAccount, spendAsset
     "signature" -> Base58.encode(signature)
   )
 
+  override def equals(that: scala.Any): Boolean = that match {
+    case that: WavesOrder => sender == that.sender &&
+      matcher == that.matcher &&
+      (spendAssetId sameElements that.spendAssetId) &&
+      (receiveAssetId sameElements that.receiveAssetId) &&
+      price == that.price &&
+      amount == that.amount &&
+      maxTimestamp == that.maxTimestamp &&
+      matcherFee == that.matcherFee &&
+      (signature sameElements that.signature)
+    case _ => false
+  }
+
+
 }
 
-object Order extends Deser[Order] {
+object WavesOrder extends Deser[WavesOrder] {
   val MaxLiveTime: Long = 30L * 24L * 60L * 60L * 1000L
   private val AssetIdLength = 32
 
   def apply(sender: PrivateKeyAccount, matcher: PublicKeyAccount, spendAssetID: Array[Byte],
-            receiveAssetID: Array[Byte], price: Long, amount: Long, maxTime: Long, matcherFee: Long): Order = {
-    val unsigned = Order(sender, matcher, spendAssetID, receiveAssetID, price, amount, maxTime, matcherFee, Array())
+            receiveAssetID: Array[Byte], price: Long, amount: Long, maxTime: Long, matcherFee: Long): WavesOrder = {
+    val unsigned = WavesOrder(sender, matcher, spendAssetID, receiveAssetID, price, amount, maxTime, matcherFee, Array())
     val sig = EllipticCurveImpl.sign(sender, unsigned.toSign)
-    Order(sender, matcher, spendAssetID, receiveAssetID, price, amount, maxTime, matcherFee, sig)
+    WavesOrder(sender, matcher, spendAssetID, receiveAssetID, price, amount, maxTime, matcherFee, sig)
   }
 
-  override def parseBytes(bytes: Array[Byte]): Try[Order] = Try {
+  override def parseBytes(bytes: Array[Byte]): Try[WavesOrder] = Try {
     val sender = new PublicKeyAccount(bytes.slice(0, Account.AddressLength))
     val matcher = new PublicKeyAccount(bytes.slice(Account.AddressLength, 2 * Account.AddressLength))
     val spend = bytes.slice(2 * Account.AddressLength, 2 * Account.AddressLength + AssetIdLength)
@@ -73,6 +87,6 @@ object Order extends Deser[Order] {
     val maxTimestamp = Longs.fromByteArray(bytes.slice(longsStart + 16, longsStart + 24))
     val matcherFee = Longs.fromByteArray(bytes.slice(longsStart + 24, longsStart + 32))
     val signature = bytes.slice(longsStart + 32, bytes.length)
-    Order(sender, matcher, spend, receive, price, amount, maxTimestamp, matcherFee, signature)
+    WavesOrder(sender, matcher, spend, receive, price, amount, maxTimestamp, matcherFee, signature)
   }
 }

@@ -11,7 +11,7 @@ trait HttpApi extends RouteConcatenation
   this: CoreActors with Core =>
 
   val routes =
-    OrdersService(ordersActor).route ~
+    MatcherApiRoute().route ~
       SwaggerUiService.route ~
       corsHandler(new SwaggerDocService(system, config).routes)
 }

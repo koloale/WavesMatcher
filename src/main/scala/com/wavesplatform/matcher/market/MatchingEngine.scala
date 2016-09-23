@@ -1,21 +1,12 @@
-package com.wavesplatform.matcher
+package com.wavesplatform.matcher.market
 
-import java.util.{Comparator, UUID}
+import java.util.UUID
 
-import akka.actor.{Actor, ActorLogging, Props}
-import akka.util.Timeout
-
-import com.wavesplatform.matcher.MatchingEngine.{OrderCreated, OrderResponse}
+import com.wavesplatform.matcher._
+import com.wavesplatform.matcher.market.MatchingEngine.{OrderCreated, OrderResponse}
+import com.wavesplatform.matcher.model.OrderItem
 import com.wavesplatform.utils.ScorexLogging
-import play.api.libs.json.{JsObject, JsValue, Json}
-
-case object BidComparator extends Comparator[Double] {
-  def compare(o1: Double, o2: Double) = -o1.compareTo(o2)
-}
-
-case object AskComparator extends Comparator[Double] {
-  def compare(o1: Double, o2: Double) = o1.compareTo(o2)
-}
+import play.api.libs.json.{JsValue, Json}
 
 object MatchingEngine {
   def name = "market"
@@ -33,39 +24,39 @@ object MatchingEngine {
 }
 
 class MatchingEngine extends ScorexLogging {
-  var bids: Map[Instrument, OrderBook] = Instruments.values.map(i => i -> new OrderBook(i, BidComparator)).toMap
-  var asks: Map[Instrument, OrderBook] = Instruments.values.map(i => i -> new OrderBook(i, AskComparator)).toMap
+  var bids: Map[AssetPair, OrderBook] = Map()
+  var asks: Map[AssetPair, OrderBook] = Map()
 
   private def buy(order: OrderItem) {
-    val (executedOrders, remaining) = asks(order.instrument).execute(order)
+    val (executedOrders, remaining) = asks(order.assetPair).execute(order)
 
     if (executedOrders.nonEmpty) {
       log.info("Buy Executed: {}", executedOrders)
     }
 
     if (remaining > 0) {
-      bids(order.instrument).add(order.copy(quantity = remaining))
+      bids(order.assetPair).add(order.copy(amount = remaining))
     }
   }
 
   private def sell(order: OrderItem) {
-    val (executedOrders, remaining) = bids(order.instrument).execute(order)
+    val (executedOrders, remaining) = bids(order.assetPair).execute(order)
 
     if (executedOrders.nonEmpty) {
       log.info("Sell Executed: {}", executedOrders)
     }
 
     if (remaining > 0) {
-      asks(order.instrument).add(order.copy(quantity = remaining))
+      asks(order.assetPair).add(order.copy(amount = remaining))
     }
   }
 
-  def getBidOrders(instrument: Instrument): Seq[OrderItem]  = {
-    bids(instrument).flattenOrders
+  def getBidOrders(assetPair: AssetPair): Seq[OrderItem]  = {
+    bids(assetPair).flattenOrders
   }
 
-  def getAskOrders(instrument: Instrument): Seq[OrderItem]  = {
-    asks(instrument).flattenOrders
+  def getAskOrders(assetPair: AssetPair): Seq[OrderItem]  = {
+    asks(assetPair).flattenOrders
   }
 
   def place(order: OrderItem): OrderResponse = {

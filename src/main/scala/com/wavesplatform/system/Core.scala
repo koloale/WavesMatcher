@@ -2,7 +2,6 @@ package com.wavesplatform.system
 
 import com.typesafe.config.ConfigFactory
 import com.wavesplatform.matcher.api.HttpApi
-import com.wavesplatform.matcher.market.OrdersActor
 
 import scala.concurrent.Future
 
@@ -24,7 +23,6 @@ trait Core {
 trait CoreActors {
   this: Core =>
 
-  val ordersActor = system.actorOf(Props[OrdersActor])
 }
 
 /*trait Web {

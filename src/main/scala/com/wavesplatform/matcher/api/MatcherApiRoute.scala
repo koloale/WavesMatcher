@@ -3,26 +3,27 @@ package com.wavesplatform.matcher.api
 import javax.ws.rs.Path
 
 import com.wavesplatform.matcher.api.http.WrongTransactionJson
-import com.wavesplatform.matcher.{MatchingEngine, OrderJS}
 import io.swagger.annotations._
 import play.api.libs.json.{JsError, JsSuccess, Json}
-
 import scala.util.{Failure, Success, Try}
 
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 
-import com.wavesplatform.matcher.MatchingEngine._
+import com.wavesplatform.matcher.market.MatchingEngine
+import com.wavesplatform.matcher.market.MatchingEngine._
+import com.wavesplatform.matcher.model.OrderJson
+import com.wavesplatform.matcher.system.PlayJsonSupport
 
 @Path("/matcher")
-@Api(value = "matcher")
-case class MatcherApiRoute()
-  extends ApiRoute {
+@Api(value = "matcher", produces = "application/json", consumes = "application/json")
+case class MatcherApiRoute() extends ApiRoute
+  {
 
   override lazy val route =
     pathPrefix("matcher") {
-      place //~ cancel ~ getUnsigned
+      buy//~ cancel ~ getUnsigned
     }
 
   val matcher = new MatchingEngine
@@ -65,7 +66,7 @@ case class MatcherApiRoute()
     }
   }
 */
-
+  /*
   @Path("/order/place")
   @ApiOperation(value = "Place",
     notes = "Place new order",
@@ -78,7 +79,7 @@ case class MatcherApiRoute()
       value = "Json with data",
       required = true,
       paramType = "body",
-      dataType = "com.wavesplatform.matcher.OrderJS",
+      dataType = "com.wavesplatform.matcher.model.Order",
       defaultValue = "{\n\t\"spendAddress\":\"spendAddress\",\n\t\"spendTokenID\":\"spendTokenID\",\n\t\"receiveTokenID\":\"receiveTokenID\",\n\t\"price\":1,\n\t\"amount\":1,\n\t\"signature\":\"signature\"\n}"
     )
   ))
@@ -103,7 +104,61 @@ case class MatcherApiRoute()
         }
       }
     }
+  }*/
+
+  @Path("/orders/buy")
+  @ApiOperation(value = "Place",
+    notes = "Place new order",
+    httpMethod = "POST",
+    produces = "application/json",
+    consumes = "application/json")
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(
+      name = "body",
+      value = "Json with data",
+      required = true,
+      paramType = "body",
+      dataType = "com.wavesplatform.matcher.model.OrderJson"
+    )
+  ))
+  @ApiResponses(Array(new ApiResponse(code = 200, message = "Json with response or error")))
+  def buy =
+    path("orders" / "buy") {
+      pathEndOrSingleSlash {
+        entity(as[String]) { body =>
+          postJsonRoute {
+            Try(Json.parse(body)).map { js =>
+              js.validate[OrderJson] match {
+                case err: JsError =>
+                  WrongTransactionJson(err).response
+                case JsSuccess(orderJson: OrderJson, _) =>
+                  JsonResponse(Json.obj("accepted" -> "json"), StatusCodes.OK)
+                  /*orderJson.order match {
+                    case Success(order) if order.isValid =>
+                      //val resp = matcher.place(order)
+                      JsonResponse(Json.obj("accepted" -> resp.json), StatusCodes.OK)
+                    case _ => WrongJson.response
+                  }*/
+              }
+            }.getOrElse(WrongJson.response)
+          }
+        }
+      }
+    }
+
+  /*def place: Route = path("order/place") {
+  withCors {
+    entity(as[Order]) { order =>
+      postJsonRoute {
+        if (order.isValid) {
+          //val resp = matcher.place(order)
+          JsonResponse(Json.obj("accepted" -> "123"), StatusCodes.OK)
+        } else WrongJson.response
+      }
+    }
   }
+}*/
+
 /*
   @Path("/transaction/{address}")
   @ApiOperation(value = "Transactions", notes = "Get transactions to sign", httpMethod = "GET")
