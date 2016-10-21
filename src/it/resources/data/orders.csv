@@ -1,0 +1,23 @@
+spendAssetId, receiveAssetId, price, amount
+eur,usd,100, 1000
+eur,usd,99, 1000
+eur,usd,98, 1000
+eur,usd,97, 1000
+eur,usd,96, 1000
+eur,usd,95, 1000
+eur,usd,94, 1000
+eur,usd,93, 1000
+eur,usd,92, 1000
+eur,usd,91, 1000
+eur,usd,90, 1000
+usd,eur,90, 1000
+usd,eur,91, 1000
+usd,eur,92, 1000
+usd,eur,93, 1000
+usd,eur,94, 1000
+usd,eur,95, 1000
+usd,eur,96, 1000
+usd,eur,97, 1000
+usd,eur,98, 1000
+usd,eur,99, 1000
+usd,eur,100, 1000

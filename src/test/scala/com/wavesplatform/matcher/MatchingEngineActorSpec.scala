@@ -2,16 +2,13 @@ package com.wavesplatform.matcher
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-
-import com.wavesplatform.TransactionGen
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class MatchingEngineActorSpec extends TestKit(ActorSystem("MatcherTest"))
   with WordSpecLike
   with Matchers
   with BeforeAndAfterAll
-  with ImplicitSender
-  with TransactionGen {
+  with ImplicitSender {
 
   /*"MatchingEngineActor" should {
     val orderSample = orderGenerator.sample

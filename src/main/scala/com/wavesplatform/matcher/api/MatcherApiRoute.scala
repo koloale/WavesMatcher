@@ -2,70 +2,100 @@ package com.wavesplatform.matcher.api
 
 import javax.ws.rs.Path
 
-import com.wavesplatform.matcher.api.http.WrongTransactionJson
-import io.swagger.annotations._
-import play.api.libs.json.{JsError, JsSuccess, Json}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.Future
+import scala.util.Try
 
-import akka.actor.ActorRefFactory
-import akka.http.scaladsl.model.StatusCodes
+import akka.actor.{ActorRef, ActorRefFactory}
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCode, StatusCodes}
 import akka.http.scaladsl.server.Route
 
-import com.wavesplatform.matcher.market.MatchingEngine
-import com.wavesplatform.matcher.market.MatchingEngine._
-import com.wavesplatform.matcher.model.OrderJson
-import com.wavesplatform.matcher.system.PlayJsonSupport
+import com.wavesplatform.matcher.market.MatcherActor.OrderResponse
+import com.wavesplatform.matcher.model.OrderJson._
+import com.wavesplatform.matcher.model.OrderValidator
+import com.wavesplatform.settings.MatcherSettings
+import io.swagger.annotations._
+import play.api.libs.json._
+import scorex.api.http._
+import scorex.transaction.assets.exchange.Order
+import skinny.validator.Errors
+import akka.pattern.ask
+import scala.concurrent.ExecutionContext.Implicits.global
+
+case class ValidationErrorJson(err: Errors) extends ApiError {
+  override val id: Int = 120
+  override val message: String =
+    err.errors.map(e => s"Validation failed for field '${e._1}', errors:${e._2.mkString(", ")}. ").mkString("\n")
+  override val code: StatusCode = StatusCodes.BadRequest
+}
 
 @Path("/matcher")
 @Api(value = "matcher", produces = "application/json", consumes = "application/json")
-case class MatcherApiRoute() extends ApiRoute
-  {
+case class MatcherApiRoute(matcher: ActorRef)(implicit val settings: MatcherSettings,
+                                              implicit val context: ActorRefFactory) extends ApiRoute {
+
+  def postJsonRouteAsync(fn: Future[JsonResponse]): Route = {
+    onSuccess(fn) {res: JsonResponse =>
+      complete(res.code -> HttpEntity(ContentTypes.`application/json`, res.response.toString))
+    }
+  }
 
   override lazy val route =
     pathPrefix("matcher") {
-      buy//~ cancel ~ getUnsigned
+      place//~ cancel ~ getUnsigned
     }
 
-  val matcher = new MatchingEngine
-/*
-  @Path("/order/cancel")
-  @ApiOperation(value = "Cancel",
-    notes = "Calncel your order",
-    httpMethod = "POST",
-    produces = "application/json",
-    consumes = "application/json")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(
-      name = "body",
-      value = "Json with data",
-      required = true,
-      paramType = "body",
-      dataType = "com.wavesplatform.matcher.CancelJS",
-      defaultValue = "{\n\t\"spendAddress\":\"spendAddress\",\n\t\"OrderID\":0,\n\t\"signature\":\"signature\"\n}"
-    )
-  ))
-  def cancel: Route = path("order/cancel") {
-    withCors {
-      entity(as[String]) { body =>
-        postJsonRoute {
-          Try(Json.parse(body)).map { js =>
-            js.validate[CancelJS] match {
-              case err: JsError =>
-                WrongTransactionJson(err).response
-              case JsSuccess(cancelJS: CancelJS, _) =>
-                cancelJS.cancel match {
-                  case Success(cancelOrder) if cancelOrder.isValid =>
-                    //TODO signed message what order is cancelled (with remaining amount)
-                    JsonResponse(Json.obj("cancelled" -> matcher.cancel(cancelOrder)), StatusCodes.OK)
-                  case _ => WrongJson.response
-                }
-            }
-          }.getOrElse(WrongJson.response)
+  val smallRoute: Route =
+    pathPrefix("matcher") {
+      get {
+        pathSingleSlash {
+          complete {
+            "Captain on the bridge!"
+          }
+        } ~
+          path("ping") {
+            complete("PONG!")
+          }
+      }
+    }
+  /*
+    @Path("/order/cancel")
+    @ApiOperation(value = "Cancel",
+      notes = "Calncel your order",
+      httpMethod = "POST",
+      produces = "application/json",
+      consumes = "application/json")
+    @ApiImplicitParams(Array(
+      new ApiImplicitParam(
+        name = "body",
+        value = "Json with data",
+        required = true,
+        paramType = "body",
+        dataType = "com.wavesplatform.matcher.CancelJS",
+        defaultValue = "{\n\t\"spendAddress\":\"spendAddress\",\n\t\"OrderID\":0,\n\t\"signature\":\"signature\"\n}"
+      )
+    ))
+    def cancel: Route = path("order/cancel") {
+      withCors {
+        entity(as[String]) { body =>
+          postJsonRoute {
+            Try(Json.parse(body)).map { js =>
+              js.validate[CancelJS] match {
+                case err: JsError =>
+                  WrongTransactionJson(err).response
+                case JsSuccess(cancelJS: CancelJS, _) =>
+                  cancelJS.cancel match {
+                    case Success(cancelOrder) if cancelOrder.isValid =>
+                      //TODO signed message what order is cancelled (with remaining amount)
+                      JsonResponse(Json.obj("cancelled" -> matcher.cancel(cancelOrder)), StatusCodes.OK)
+                    case _ => WrongJson.response
+                  }
+              }
+            }.getOrElse(WrongJson.response)
+          }
         }
       }
     }
-  }
-*/
+  */
   /*
   @Path("/order/place")
   @ApiOperation(value = "Place",
@@ -106,9 +136,9 @@ case class MatcherApiRoute() extends ApiRoute
     }
   }*/
 
-  @Path("/orders/buy")
-  @ApiOperation(value = "Place",
-    notes = "Place new order",
+  @Path("/orders/place")
+  @ApiOperation(value = "Place order",
+    notes = "Place a new limit order (buy or sell)",
     httpMethod = "POST",
     produces = "application/json",
     consumes = "application/json")
@@ -118,33 +148,35 @@ case class MatcherApiRoute() extends ApiRoute
       value = "Json with data",
       required = true,
       paramType = "body",
-      dataType = "com.wavesplatform.matcher.model.OrderJson"
+      dataType = "scorex.transaction.assets.exchange.Order"
     )
   ))
-  @ApiResponses(Array(new ApiResponse(code = 200, message = "Json with response or error")))
-  def buy =
-    path("orders" / "buy") {
-      pathEndOrSingleSlash {
-        entity(as[String]) { body =>
-          postJsonRoute {
-            Try(Json.parse(body)).map { js =>
-              js.validate[OrderJson] match {
-                case err: JsError =>
-                  WrongTransactionJson(err).response
-                case JsSuccess(orderJson: OrderJson, _) =>
-                  JsonResponse(Json.obj("accepted" -> "json"), StatusCodes.OK)
-                  /*orderJson.order match {
-                    case Success(order) if order.isValid =>
-                      //val resp = matcher.place(order)
-                      JsonResponse(Json.obj("accepted" -> resp.json), StatusCodes.OK)
-                    case _ => WrongJson.response
-                  }*/
+  def place: Route = path("orders" / "place") {
+    entity(as[String]) { body =>
+      postJsonRouteAsync {
+        Try(Json.parse(body)).map { js =>
+          js.validate[Order] match {
+            case err: JsError =>
+              Future.successful(WrongTransactionJson(err).response)
+            case JsSuccess(order: Order, _) =>
+              val validation = OrderValidator(order)
+              if (validation.validate()) {
+                (matcher ? order)
+                .mapTo[OrderResponse]
+                .map { resp =>
+                  JsonResponse(resp.json, StatusCodes.OK)
+                }
+              } else {
+                Future.successful(ValidationErrorJson(validation.errors).response)
               }
-            }.getOrElse(WrongJson.response)
           }
-        }
+        }.recover {
+          case t => println(t)
+            Future.successful(WrongJson.response)
+        }.get
       }
     }
+  }
 
   /*def place: Route = path("order/place") {
   withCors {
@@ -159,64 +191,64 @@ case class MatcherApiRoute() extends ApiRoute
   }
 }*/
 
-/*
-  @Path("/transaction/{address}")
-  @ApiOperation(value = "Transactions", notes = "Get transactions to sign", httpMethod = "GET")
-  @ApiResponses(Array(
-    new ApiResponse(code = 200, message = "Json Waves node version")
-  ))
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "address", value = "Address", required = true, dataType = "String", paramType = "path")
-  ))
-  def getUnsigned: Route = {
-    path("transaction" / Segment) { case address =>
-      getJsonRoute {
-        JsonResponse(Json.obj("version" -> "123"), StatusCodes.OK)
-      }
-    }
-  }
-
-  @Path("/transaction/sign")
-  @ApiOperation(value = "Sign",
-    notes = "Sign matched transaction",
-    httpMethod = "POST",
-    produces = "application/json",
-    consumes = "application/json")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(
-      name = "body",
-      value = "Json with data",
-      required = true,
-      paramType = "body",
-      defaultValue = "{\n\t\"transactionId\":\"transactionId\",\n\t\"signature\":\"signature\"\n}"
-    )
-  ))
-  @ApiResponses(Array(new ApiResponse(code = 200, message = "Json with response or error")))
-  def sign: Route = path("transaction/sign") {
-    withCors {
-      entity(as[String]) { body =>
-        postJsonRoute {
-          Try {
-            val js = Json.parse(body)
-            val signature = Base58.decode((js \ "signature").as[String]).get
-            val transactionId = Base58.decode((js \ "transactionId").as[String]).get
-            val signedTx = matcher.sign(transactionId, signature)
-            signedTx match {
-              case Success(tx) =>
-                if (tx.isCompleted) {
-                  val ntwMsg = Message(ExchangeTransactionMessageSpec, Right(tx), None)
-                  application.networkController ! NetworkController.SendToNetwork(ntwMsg, Broadcast)
-                }
-                JsonResponse(Json.obj("signed" -> true, "broadcasted" -> tx.isCompleted), StatusCodes.OK)
-              case Failure(e) =>
-                JsonResponse(Json.obj("signed" -> false, "error" -> e.getMessage), StatusCodes.OK)
-            }
-          }.getOrElse(WrongJson.response)
+  /*
+    @Path("/transaction/{address}")
+    @ApiOperation(value = "Transactions", notes = "Get transactions to sign", httpMethod = "GET")
+    @ApiResponses(Array(
+      new ApiResponse(code = 200, message = "Json Waves node version")
+    ))
+    @ApiImplicitParams(Array(
+      new ApiImplicitParam(name = "address", value = "Address", required = true, dataType = "String", paramType = "path")
+    ))
+    def getUnsigned: Route = {
+      path("transaction" / Segment) { case address =>
+        getJsonRoute {
+          JsonResponse(Json.obj("version" -> "123"), StatusCodes.OK)
         }
       }
     }
-  }
-*/
+
+    @Path("/transaction/sign")
+    @ApiOperation(value = "Sign",
+      notes = "Sign matched transaction",
+      httpMethod = "POST",
+      produces = "application/json",
+      consumes = "application/json")
+    @ApiImplicitParams(Array(
+      new ApiImplicitParam(
+        name = "body",
+        value = "Json with data",
+        required = true,
+        paramType = "body",
+        defaultValue = "{\n\t\"transactionId\":\"transactionId\",\n\t\"signature\":\"signature\"\n}"
+      )
+    ))
+    @ApiResponses(Array(new ApiResponse(code = 200, message = "Json with response or error")))
+    def sign: Route = path("transaction/sign") {
+      withCors {
+        entity(as[String]) { body =>
+          postJsonRoute {
+            Try {
+              val js = Json.parse(body)
+              val signature = Base58.decode((js \ "signature").as[String]).get
+              val transactionId = Base58.decode((js \ "transactionId").as[String]).get
+              val signedTx = matcher.sign(transactionId, signature)
+              signedTx match {
+                case Success(tx) =>
+                  if (tx.isCompleted) {
+                    val ntwMsg = Message(ExchangeTransactionMessageSpec, Right(tx), None)
+                    application.networkController ! NetworkController.SendToNetwork(ntwMsg, Broadcast)
+                  }
+                  JsonResponse(Json.obj("signed" -> true, "broadcasted" -> tx.isCompleted), StatusCodes.OK)
+                case Failure(e) =>
+                  JsonResponse(Json.obj("signed" -> false, "error" -> e.getMessage), StatusCodes.OK)
+              }
+            }.getOrElse(WrongJson.response)
+          }
+        }
+      }
+    }
+  */
 
 }
 

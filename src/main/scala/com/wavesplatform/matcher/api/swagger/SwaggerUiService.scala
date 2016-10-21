@@ -1,8 +1,12 @@
 package com.wavesplatform.matcher.api.swagger
 
-import com.wavesplatform.matcher.api.ApiRoute
+import akka.actor.ActorRefFactory
 
-case object SwaggerUiService extends ApiRoute {
+import com.wavesplatform.settings.MatcherSettings
+import scorex.api.http.ApiRoute
+
+case class SwaggerUiService(implicit val settings: MatcherSettings, implicit val context: ActorRefFactory)
+    extends ApiRoute {
   val route =
     path("swagger") { getFromResource("swagger-ui/index.html") } ~
       getFromResourceDirectory("swagger-ui")

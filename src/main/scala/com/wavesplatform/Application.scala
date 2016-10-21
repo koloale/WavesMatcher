@@ -1,15 +1,13 @@
 package com.wavesplatform
 
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 import com.wavesplatform.matcher.api.HttpApi
 import com.wavesplatform.system.{Core, CoreActors, Web}
-
 import akka.util.Timeout
 
 object Application extends App
   with Core
   with CoreActors
-  with HttpApi
   with Web
   with RequestTimeout {
 

@@ -1,33 +1,32 @@
 package com.wavesplatform.matcher.market
 
-import java.util.UUID
+import akka.actor.{Actor, ActorRef, Props}
 
-import com.wavesplatform.matcher._
-import com.wavesplatform.matcher.market.MatchingEngine.{OrderCreated, OrderResponse}
-import com.wavesplatform.matcher.model.OrderItem
+import com.wavesplatform.matcher.market.MatcherActor.OrderResponse
 import com.wavesplatform.utils.ScorexLogging
 import play.api.libs.json.{JsValue, Json}
+import scorex.transaction.assets.exchange.{AssetPair, Order}
 
-object MatchingEngine {
-  def name = "market"
+object MatcherActor {
+  def name = "matcher"
+  def props(): Props = Props(new MatcherActor())
 
   sealed trait OrderResponse {
     val json: JsValue
   }
-  case class OrderCreated(id: String) extends OrderResponse {
-    implicit val formatter = Json.format[OrderCreated]
-    val json = Json.toJson(this)
+  case class OrderAccepted(order: Order) extends OrderResponse {
+    val json = order.json
   }
   case object OrderCanceled extends OrderResponse {
     val json = Json.toJson("Order Canceled")
   }
 }
 
-class MatchingEngine extends ScorexLogging {
+class MatcherActor extends Actor with ScorexLogging {
   var bids: Map[AssetPair, OrderBook] = Map()
   var asks: Map[AssetPair, OrderBook] = Map()
 
-  private def buy(order: OrderItem) {
+  private def buy(order: Order) {
     val (executedOrders, remaining) = asks(order.assetPair).execute(order)
 
     if (executedOrders.nonEmpty) {
@@ -39,7 +38,7 @@ class MatchingEngine extends ScorexLogging {
     }
   }
 
-  private def sell(order: OrderItem) {
+  private def sell(order: Order) {
     val (executedOrders, remaining) = bids(order.assetPair).execute(order)
 
     if (executedOrders.nonEmpty) {
@@ -51,17 +50,15 @@ class MatchingEngine extends ScorexLogging {
     }
   }
 
-  def getBidOrders(assetPair: AssetPair): Seq[OrderItem]  = {
+  def getBidOrders(assetPair: AssetPair): Seq[Order]  = {
     bids(assetPair).flattenOrders
   }
 
-  def getAskOrders(assetPair: AssetPair): Seq[OrderItem]  = {
+  def getAskOrders(assetPair: AssetPair): Seq[Order]  = {
     asks(assetPair).flattenOrders
   }
 
-  def place(order: OrderItem): OrderResponse = {
-    OrderCreated(UUID.randomUUID().toString)
-  }
+  def place(order: Order): OrderResponse = ???
 
   /*def receive: Receive = {
     case order @ Order(clientId, OrderType.BUY, _, _, _) =>
@@ -73,4 +70,22 @@ class MatchingEngine extends ScorexLogging {
       sell(order)
       sender() ! OrderCreated(clientId)
   }*/
+
+  def createOrderBook(pair: AssetPair) =
+    context.actorOf(OrderBookActor.props(pair), OrderBookActor.name(pair))
+
+  def createAndForward(order: Order) = {
+    val orderBook = createOrderBook(order.assetPair)
+    forwardOrder(order)(orderBook)
+  }
+
+  def forwardOrder(order: Order)(orderBook: ActorRef) = orderBook forward order
+
+  def forwardToOrderBook: Receive = {
+    case order: Order =>
+      context.child(OrderBookActor.name(order.assetPair))
+        .fold(createAndForward(order))(forwardOrder(order))
+  }
+
+  override def receive: Receive = forwardToOrderBook
 }

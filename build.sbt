@@ -1,4 +1,5 @@
 enablePlugins(JavaAppPackaging)
+enablePlugins(GatlingPlugin)
 
 name := "WavesMatcher"
 organization := "com.wavesplatform"
@@ -27,29 +28,50 @@ lazy val loggingLibs = Seq(
 
 lazy val commonsLibs = Seq(
   "org.consensusresearch" %% "scrypto" % "1.0.4",
-  "commons-net" % "commons-net" % "3.+"
+  "commons-net" % "commons-net" % "3.+",
+  "org.skinny-framework" %% "skinny-validator" % "2.+"
 )
 
-libraryDependencies ++= {
-  val akkaV       = "2.4.10"
-  val scalaTestV  = "3.0.0"
-  Seq(
-    "com.typesafe.akka" %% "akka-actor" % akkaV,
-    "com.typesafe.akka" %% "akka-stream" % akkaV,
-    "com.typesafe.akka" %% "akka-http-experimental" % akkaV,
-    "com.typesafe.akka" %% "akka-persistence" % akkaV,
-    "com.github.dnvriend" %% "akka-persistence-inmemory" % "1.3.8" % "test",
-    "com.typesafe.akka" %% "akka-http-testkit" % akkaV,
-    "org.scalatest"     %% "scalatest" % scalaTestV % "test",
-    "org.consensusresearch" % "scrypto_2.11" % "1.0.4"
-  )
-}
+lazy val gatlingLibs = Seq(
+  "io.gatling.highcharts" % "gatling-charts-highcharts" % "2.2.2" % "test",
+  "io.gatling"            % "gatling-test-framework"    % "2.2.2" % "test"
+)
 
-libraryDependencies ++= swagger ++
+val modulesVersion = "1.5.0-SNAPSHOT"
+lazy val scorexLibs = Seq(
+  "com.wavesplatform" %% "scorex-basics" % modulesVersion,
+  "com.wavesplatform" %% "scorex-consensus" % modulesVersion,
+  "com.wavesplatform" %% "scorex-transaction" % modulesVersion
+)
+
+val akkaV       = "2.4.11"
+lazy val akkaLibs = Seq(
+  "com.typesafe.akka" %% "akka-actor" % akkaV,
+  "com.typesafe.akka" %% "akka-stream" % akkaV,
+  "com.typesafe.akka" %% "akka-http-experimental" % akkaV,
+  "com.typesafe.akka" %% "akka-persistence" % akkaV,
+  "com.github.dnvriend" %% "akka-persistence-inmemory" % "1.3.8" % "test",
+  "com.typesafe.akka" %% "akka-http-testkit" % akkaV,
+  "org.iq80.leveldb"            % "leveldb"          % "0.7",
+  "org.fusesource.leveldbjni"   % "leveldbjni-all"   % "1.8",
+  "com.github.romix.akka" %% "akka-kryo-serialization" % "0.4.1"
+)
+
+val scalaTestV  = "3.+"
+val testLibs = Seq(
+  "org.scalatest"     %% "scalatest" % scalaTestV % "test",
+   "org.scalacheck" %% "scalacheck" % "1.+"
+)
+
+
+libraryDependencies ++=
+  swagger ++
   serializeLibs ++
   commonsLibs ++
-  loggingLibs
-
-libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.13.2" % "test"
+  loggingLibs ++
+  gatlingLibs ++
+  akkaLibs ++
+  scorexLibs ++
+  testLibs
 
 Revolver.settings

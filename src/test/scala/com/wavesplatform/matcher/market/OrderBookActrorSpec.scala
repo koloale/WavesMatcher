@@ -1,26 +1,23 @@
 package com.wavesplatform.matcher.market
 
-import java.util.UUID
-
 import akka.actor.{ActorSystem, Props}
 import akka.persistence.inmemory.extension.{InMemoryJournalStorage, InMemorySnapshotStorage, StorageExtension}
-import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
+import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 
-import com.wavesplatform.TransactionGen
 import com.wavesplatform.matcher.MatcherTestData
 import com.wavesplatform.matcher.fixtures.RestartableActor
 import com.wavesplatform.matcher.fixtures.RestartableActor.RestartActor
+import com.wavesplatform.matcher.market.MatcherActor.OrderAccepted
 import com.wavesplatform.matcher.market.OrderBookActor._
-import com.wavesplatform.matcher.model.{OrderItem, OrderType}
 import com.wavesplatform.utils.ScorexLogging
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers, WordSpecLike}
+import scorex.transaction.assets.exchange.AssetPair
 
 class OrderBookActrorSpec extends TestKit(ActorSystem("MatcherTest"))
   with WordSpecLike
   with Matchers
   with BeforeAndAfterAll
   with ImplicitSender
-  with TransactionGen
   with MatcherTestData
   with BeforeAndAfterEach
   with ScorexLogging {
@@ -39,7 +36,7 @@ class OrderBookActrorSpec extends TestKit(ActorSystem("MatcherTest"))
   }
 
   "OrderBookActror" should {
-    val pair = ("BTC", "WAVES")
+    val pair = AssetPair("BTC".getBytes, "WAVES".getBytes)
 
     "place buy orders" in {
       val ord1 = buy(pair, 34118, 1583290045643L)
@@ -47,12 +44,12 @@ class OrderBookActrorSpec extends TestKit(ActorSystem("MatcherTest"))
       val ord3 = buy(pair, 34000, 44521418496L)
       val actor = system.actorOf(OrderBookActor.props(pair))
 
-      actor ! AddOrderCommand(ord1)
-      expectMsg(AddOrderResponse(ord1))
-      actor ! AddOrderCommand(ord2)
-      expectMsg(AddOrderResponse(ord2))
-      actor ! AddOrderCommand(ord3)
-      expectMsg(AddOrderResponse(ord3))
+      actor ! ord1
+      expectMsg(OrderAccepted(ord1))
+      actor ! ord2
+      expectMsg(OrderAccepted(ord2))
+      actor ! ord3
+      expectMsg(OrderAccepted(ord3))
 
       actor ! GetOrdersRequest
       expectMsg(GetOrdersResponse(Seq(ord2, ord1, ord3)))
@@ -64,12 +61,12 @@ class OrderBookActrorSpec extends TestKit(ActorSystem("MatcherTest"))
       val ord3 = sell(pair, 34000, 44521418496L)
       val actor = system.actorOf(OrderBookActor.props(pair))
 
-      actor ! AddOrderCommand(ord1)
-      expectMsg(AddOrderResponse(ord1))
-      actor ! AddOrderCommand(ord2)
-      expectMsg(AddOrderResponse(ord2))
-      actor ! AddOrderCommand(ord3)
-      expectMsg(AddOrderResponse(ord3))
+      actor ! ord1
+      expectMsg(OrderAccepted(ord1))
+      actor ! ord2
+      expectMsg(OrderAccepted(ord2))
+      actor ! ord3
+      expectMsg(OrderAccepted(ord3))
 
       actor ! GetOrdersRequest
       expectMsg(GetOrdersResponse(Seq(ord3, ord1, ord2)))
@@ -80,8 +77,8 @@ class OrderBookActrorSpec extends TestKit(ActorSystem("MatcherTest"))
       val ord2 = sell(pair, 100, 10)
       val actor = system.actorOf(OrderBookActor.props(pair))
 
-      actor ! AddOrderCommand(ord1)
-      actor ! AddOrderCommand(ord2)
+      actor ! ord1
+      actor ! ord2
       receiveN(2)
 
       actor ! GetOrdersRequest
@@ -93,8 +90,8 @@ class OrderBookActrorSpec extends TestKit(ActorSystem("MatcherTest"))
       val ord2 = sell(pair, 150, 15)
       val actor = system.actorOf(Props(new OrderBookActor(pair) with RestartableActor))
 
-      actor ! AddOrderCommand(ord1)
-      actor ! AddOrderCommand(ord2)
+      actor ! ord1
+      actor ! ord2
       receiveN(2)
 
       actor ! RestartActor
@@ -108,10 +105,10 @@ class OrderBookActrorSpec extends TestKit(ActorSystem("MatcherTest"))
       val ord2 = sell(pair, 100, 15)
       val actor = system.actorOf(Props(new OrderBookActor(pair) with RestartableActor))
 
-      actor ! AddOrderCommand(ord1)
-      expectMsgType[AddOrderResponse]
-      actor ! AddOrderCommand(ord2)
-      expectMsgType[AddOrderResponse]
+      actor ! ord1
+      expectMsgType[OrderAccepted]
+      actor ! ord2
+      expectMsgType[OrderAccepted]
 
       actor ! RestartActor
       actor ! GetOrdersRequest
@@ -125,9 +122,9 @@ class OrderBookActrorSpec extends TestKit(ActorSystem("MatcherTest"))
       val ord2 = buy(pair, 100, 5)
       val ord3 = sell(pair, 100, 12)
 
-      actor ! AddOrderCommand(ord1)
-      actor ! AddOrderCommand(ord2)
-      actor ! AddOrderCommand(ord3)
+      actor ! ord1
+      actor ! ord2
+      actor ! ord3
       receiveN(3)
 
       actor ! RestartActor
@@ -147,10 +144,10 @@ class OrderBookActrorSpec extends TestKit(ActorSystem("MatcherTest"))
       val ord3 = sell(pair, 90, 5)
       val ord4 = buy(pair, 100, 19)
 
-      actor ! AddOrderCommand(ord1)
-      actor ! AddOrderCommand(ord2)
-      actor ! AddOrderCommand(ord3)
-      actor ! AddOrderCommand(ord4)
+      actor ! ord1
+      actor ! ord2
+      actor ! ord3
+      actor ! ord4
       receiveN(4)
 
       actor ! RestartActor
@@ -169,10 +166,10 @@ class OrderBookActrorSpec extends TestKit(ActorSystem("MatcherTest"))
       val ord2 = buy(pair, 100, 19)
 
       (1 to 1000).foreach({i =>
-        actor ! AddOrderCommand(ord1.copy(id = i.toString))
+        actor ! ord1.copy()
       })
-//      actor ! AddOrderCommand(ord1)
-//      actor ! AddOrderCommand(ord2)
+//      actor ! ord1
+//      actor ! ord2
 
       ignoreMsg {
         case GetOrdersResponse(_) => false
@@ -184,7 +181,7 @@ class OrderBookActrorSpec extends TestKit(ActorSystem("MatcherTest"))
 
       actor ! GetOrdersRequest
 
-      val items = expectMsgType[GetOrdersResponse].items.map(_.id) //should have size 1000
+      val items = expectMsgType[GetOrdersResponse].orders.map(_.id) //should have size 1000
       println(items)
       //expectMsgGetOrdersResponse(Seq(ord2.copy(amount = 9)))) s
 

@@ -1,17 +1,16 @@
 package com.wavesplatform.matcher.market
 
-import com.wavesplatform.matcher.{AssetId, AssetPair}
-import com.wavesplatform.matcher.model.OrderItem
+import scorex.transaction.assets.exchange.{AssetPair, Order}
 
-class Level(val assetPair: AssetPair, val price: Int) {
-  var orders = Vector.empty[OrderItem]
+class Level(val assetPair: AssetPair, val price: Long) {
+  var orders = Vector.empty[Order]
 
-  def += (order: OrderItem) {
+  def += (order: Order) {
     require(order.price == price && order.assetPair == assetPair)
     orders = orders :+ order
   }
 
-  def execute(order: OrderItem): (Seq[OrderItem], Long) = {
+  def execute(order: Order): (Seq[Order], Long) = {
     var remainingAmount = order.amount
 
     var (executed, rest) = orders.span { placedOrder =>
